@@ -1,0 +1,372 @@
+---
+title: "Intro-stats_ENVS401-501"
+author: "W. Austin Rutherford"
+date: "10/26/2021"
+output:
+  html_document:
+    df_print: paged
+  word_document: default
+---
+
+# Learning Objectives
+1. Examine data for testing and validating assumptions
+2. Extract relevant portions of datasets for testing
+3. Run standard parametric statistical tests in R, including Student's t, analysis of variance (ANOVA), and simple linear regression.
+
+## Data exploration
+Learn about your data before jumping into any testing
+
+```{r setup, include=T}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+# Intro to Stats in R for ENVS 401/501
+# Austin Rutherford
+# Date: 2021-10-25
+# Email: arutherford@email.arizona.edu
+
+# load (or install) needed packages
+#install.packages("palmerpenguins")
+
+library(palmerpenguins)
+library(tidyverse)
+
+# examine your data
+head(penguins)
+
+glimpse(penguins)
+
+summary(penguins)
+
+```
+
+## t-test
+-	statistic method used to determine if there is a significant difference between the means of two groups based on a sample of data.
+-	The test relies on a set of assumptions for it to be interpreted properly and with validity.
+    -	first assumption 
+        -	continuous or ordinal scale data
+    -	second assumption 
+        -	simple random sample, that the data is collected from a representative, randomly selected portion of the total                    population
+    -	third assumption
+          -	 data, when plotted, results in a normal distribution, bell-shaped distribution curve. 
+              -	normal distribution allows you to specify a level of probability (alpha level (5%), level of significance, p) 
+    -	fourth assumption
+      -	 reasonably large sample size
+    -	Fifth assumption
+        -	homogeneity of variance. Homogeneous, or equal, variance exists when the standard deviations of samples are                       approximately equal
+-	Among these assumptions, the data must be randomly sampled from the population of interest and the data variables must follow a normal distribution.
+
+
+```{r}
+
+# A question I have, is there a statistical difference in mean body mass between the Adelie and Gentoo penguin species?
+
+# base R
+boxplot(formula = body_mass_g ~ species, data = penguins)
+
+# ggplot
+penguins %>% 
+  ggplot(mapping = aes(x = species, y = body_mass_g)) + 
+  geom_boxplot()
+
+# t-test means between two groups, our groups = Adelie and Gentoo
+adelie <- penguins %>% 
+  filter(species == "Adelie")
+
+glimpse(adelie)
+
+# visualize normality assumption
+hist(adelie$body_mass_g)
+
+# quick assessment of homogeneity of variance assumption, gotta check for NAs, sd don't like em
+adelie %>% na.omit() %>% 
+  summarise(sd_mass = sd(body_mass_g))
+
+# extract only gentoo data
+gentoo <- penguins %>% 
+  filter(species == "Gentoo")
+
+glimpse(gentoo)
+
+# visualize normality assumption
+hist(gentoo$body_mass_g)
+
+# quick look at homogeneity of variance
+gentoo %>% na.omit() %>% 
+  summarise(sd_mass = sd(body_mass_g))
+
+# ready to do a t-test
+penguin.mass.test <- t.test(x = adelie$body_mass_g, y = gentoo$body_mass_g)
+
+# look at output of t-test
+penguin.mass.test
+
+### Challenge 1
+# is there a statistical difference in mean flipper length between the Adelie and Gentoo penguin species?
+# test normality, look at the standard deviation, if cool, to a t-test
+
+# hist(adelie$flipper_length_mm)
+# hist(gentoo$flipper_length_mm)
+# 
+# adelie %>% na.omit() %>% 
+#   summarise(sd_mass = sd(flipper_length_mm))
+# 
+# gentoo %>% na.omit() %>% 
+#   summarise(sd_mass = sd(flipper_length_mm))
+#             
+# penguin.flipper.test <- t.test(x = adelie$flipper_length_mm, y = gentoo$flipper_length_mm)
+# penguin.flipper.test
+
+# save outputs to a text file, really helpful for reporting later
+sink(file = "Output/penguin-mass-t-test.txt")
+penguin.mass.test
+sink()
+
+```
+
+## ANOVA (Analysis of Variance)
+-	one-way ANOVA or one-factor ANOVA is an extension of  t-test
+-	comparing means where there are more than two groups.
+-	data is organized into several groups base on one single grouping variable (also called factor variable in R)
+-	Hypothesis testing
+    -	Null hypothesis: the means of the different groups are the same
+    -	Alternative hypothesis: At least one sample mean is not equal to the others.
+-	Assumptions, like t-test
+    -	The observations are obtained independently and randomly from the population defined by the factor levels 
+    -	Each factor level is normally distributed
+    -	Homogeneity of variance
+-	If only two levels/factors, can just use t-test
+-	Tests across all factors, help with knowing which factors/groups are significantly different from each other (post-hoc)
+
+```{r}
+
+# different data types in R, factor = groups or categorical data
+glimpse(penguins)
+
+# Check how many groups?
+# Names of groups
+levels(penguins$species)
+# Count the groups
+nlevels(penguins$species)
+
+# Analysis of Variance 
+# Question: are there differences in body mass amoung three penguin species?
+# Hypothesis: penguin species have different mean body masses, null H: no difference
+penguin.mass.aov <- aov(formula = body_mass_g ~ species, data = penguins)
+
+penguin.mass.aov
+
+summary(object = penguin.mass.aov)
+
+```
+
+
+## Tukey’s HSD (honest significant difference)
+-	ANOVA tells us at least one of our groups is significantly different than the other, but not which ones
+-	Modified t-statistic that corrects for multiple pairwise comparisons
+
+```{r}
+
+# Now, we have tested and see there is a difference b/w species, but which species?
+# post-hoc test for within group pairwise differences
+TukeyHSD(x = penguin.mass.aov)
+
+# Does the post-hoc test make sense? View boxplots again.
+penguins %>% 
+  ggplot(mapping = aes(x = species, y = body_mass_g)) + 
+  geom_boxplot()
+
+# Save the output of the ANOVA to a text file
+sink(file = "Output/penguin-mass-anova.txt")
+summary(object = penguin.mass.aov)
+TukeyHSD(x = penguin.mass.aov)
+sink()
+
+### Challenge 2
+# is there a difference in bill depth among the three penguin species? 
+# If so, which are species are different from each other? 
+# test normality, look at the standard deviation, if cool, do a t-test
+
+# hist(penguins$bill_depth_mm)
+#              
+# penguin.depth.aov <- aov(formula = bill_depth_mm ~ species, data = penguins)
+# 
+# penguin.depth.aov
+# 
+# summary(object = penguin.depth.aov)
+# 
+# TukeyHSD(x = penguin.depth.aov)
+# 
+# # Does the post-hoc test make sense? View boxplots again.
+# penguins %>% 
+#   ggplot(mapping = aes(x = species, y = bill_depth_mm)) + 
+#   geom_boxplot()
+
+
+```
+
+## Simple Linear Regression
+-	Regressions, of which there are many, describe the relationship between variables by fitting a line to the observed data
+-	Linear regression models use a straight line, compared nonlinear model would be a curved line
+-	Estimate how a dependent variable (Y) changes as an independent variable (X) changes
+-	Simple linear regression used to estimate the relationship between two quantitative variables:
+    -	Asks, how strong is the relationship
+    -	Or, what is the estimated value of the dependent variable given a value for independent variable
+    -	Y = B0 + B1*X + e
+-	Assumptions
+    -	The observations are obtained independently and randomly from the population
+    -	Normal distribution
+    -	Homogeneity of variance (roughly equal variance/standard deviations of samples are approximately equal)
+    -	Important addition: relationship between the two variables is linear
+    
+```{r}
+
+# Next, simple linear regression, let's look at some new data
+
+# Use a data set called gapminder, which is a Swedish non-profit that aggregates
+# World data to allow people to ask global social questions
+
+# install.packages("gapminder")
+library(gapminder)
+
+# Look at data
+glimpse(gapminder)
+summary(gapminder)
+
+# Linear regression is about understanding relationships
+# What's the relationship between wealth and life expectancy?
+# What columns would I need to answer this question (lifeExp, gdpPercap)
+# Also, if I know the gdp, can I accurately predict the mean life expectancy?
+
+# close to normal, not horrible
+hist(gapminder$lifeExp)
+
+# wooooow that's not normal
+hist(gapminder$gdpPercap)
+# fail normality assumption, know we're gonna have to address this
+
+# is there a linear relationship, nooo
+gapminder_fig <- gapminder %>% 
+  ggplot(mapping = aes(x = gdpPercap, y = lifeExp, color = continent)) +
+  geom_point() +
+  #scale_color_manual(values = c("blue", "darkorange", "darkgreen", "darkred", "purple")) +
+  theme_classic()
+
+gapminder_fig
+
+# we can transform data to conform to the SLR assumptions
+hist(gapminder$gdpPercap)
+
+# log is one of the most common ways, but also sqrt, exp
+hist(log10(gapminder$gdpPercap))
+
+# create a new column of log transformed data, do we remember the tidyverse function?
+gapminder_log <- gapminder %>% 
+  mutate(gdp_log = log10(gdpPercap))
+
+head(gapminder_log)
+
+# look at the general relationship between life exp and log gdp
+gapminder_log_fig <- gapminder_log %>% 
+  ggplot(mapping = aes(y = lifeExp, x = gdp_log, color = continent)) +
+  geom_point() +
+  #scale_color_manual(values = c("blue", "darkorange", "darkgreen", "darkred", "purple")) +
+  theme_classic()
+
+gapminder_log_fig
+
+# Meeting assumption, now we can do the test/model
+# test the relationship
+gdp_v_life_model <- lm(formula = lifeExp ~ gdp_log, data = gapminder_log)
+
+gdp_v_life_model
+
+summary(gdp_v_life_model)
+
+```
+
+### LM Output
+-	Call
+    -	Function used for regression model
+-	Residuals
+    -	Mean = zero by definition
+    -	Median should be close to zero 
+    -	minimum and maximum should be roughly equal in absolute value
+-	Coefficients
+    -	Regression beta coefficients for equation
+    -	St. Err (accuracy of the beta coefficients)
+    -	Predictor significance based off t-statistic
+-	Residual standard error
+    -	Measure of patterns in the data that can’t be explained by the model
+    -	When comparing two models, the model with the small RSE is a good indication that this model fits the best the data
+    -	Closer to zero, better
+-	R-2
+    -	Proportion (b/w 0 – 1) of information (variation) in the data that can be explained by the model
+    -	higher the better
+-	Adjusted-R2
+    -	 Adjusted R-squared adjusts for the degrees of freedom (penalizes based on number of predictors in model)
+-	F-statistic
+    -	Overall significance of the model
+        -	Is at least one predictor’s coefficient significantly different than zero?
+    -	Higher the better
+
+```{r}
+
+# look at line
+gapminder_lm_fig <- gapminder_log %>% 
+  ggplot(mapping = aes(y = lifeExp, x = gdp_log, color = continent)) +
+  geom_point() +
+  geom_smooth(method = "lm", color = "black") +
+  #scale_color_manual(values = c("blue", "darkorange", "darkgreen", "darkred", "purple")) +
+  theme_classic()
+
+gapminder_lm_fig
+
+# Save the output of the LM to a text file
+sink(file = "Output/log-gdp-life-lm.txt")
+summary(object = gdp_v_life_model)
+sink()
+
+# lifeExp = -9.1 + 19.35*log10(gdpPercap)
+
+
+# Challenge 3
+# Is there a relationship between population size and lifeExp for 2002
+# Does having a larger population mean you may live longer?
+# No, not linear, no stastical relationship
+
+# hist(gapminder_log$pop)
+# hist(log10(gapminder_log$pop))
+# 
+# gap_2002 <- gapminder_log %>% filter(year == 2002) %>% mutate(pop_log = log10(pop))
+# 
+# hist(gap_2002$pop_log)
+# 
+# gdp_v_pop_model <- lm(formula = pop_log ~ lifeExp, data = gap_2002)
+# 
+# gdp_v_pop_model
+# 
+# summary(gdp_v_pop_model)
+# 
+# gapminder_pop2002_fig <- gap_2002 %>% 
+#   ggplot(mapping = aes(y = pop_log, x = lifeExp)) +
+#   geom_point() +
+#   theme_classic()
+# 
+# gapminder_pop2002_fig
+# 
+
+```
+    
+
+# R + Statistical Resources
+-	[Intro to Statistical Learning w/ Applications in R](https://www.statlearning.com/)
+-	[R for Data Science](https://r4ds.had.co.nz/)
+-	[Choosing the best statistical test](https://stats.idre.ucla.edu/other/mult-pkg/whatstat/)
+-	[Datacamp’s statistics page](https://www.statmethods.net/stats/index.html)
+-	[Dr. Derek Sonderegger Intro to Stat Methods](https://bookdown.org/dereksonderegger/570/)
+-	[Big Book of R](https://www.bigbookofr.com/index.html)
+-	[UA UITS Statistical Consulting](https://uarizona.service-now.com/sp?id=sc_cat_item&sys_id=c363b9ae1bdd70107947edf1604bcbb0)
+    -	Email: stat-consult@list.arizona.edu
