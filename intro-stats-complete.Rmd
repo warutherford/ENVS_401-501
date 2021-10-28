@@ -3,9 +3,9 @@ title: "Intro-stats_ENVS401-501"
 author: "W. Austin Rutherford"
 date: "10/26/2021"
 output:
+  word_document: default
   html_document:
     df_print: paged
-  word_document: default
 ---
 
 # Learning Objectives
@@ -28,7 +28,7 @@ knitr::opts_chunk$set(echo = TRUE)
 # Email: arutherford@email.arizona.edu
 
 # load (or install) needed packages
-#install.packages("palmerpenguins")
+# install.packages("palmerpenguins")
 
 library(palmerpenguins)
 library(tidyverse)
@@ -236,7 +236,7 @@ glimpse(gapminder)
 summary(gapminder)
 
 # Linear regression is about understanding relationships
-# What's the relationship between wealth and life expectancy?
+# What's the relationship between life expectancy and wealth?
 # What columns would I need to answer this question (lifeExp, gdpPercap)
 # Also, if I know the gdp, can I accurately predict the mean life expectancy?
 
@@ -270,7 +270,7 @@ head(gapminder_log)
 
 # look at the general relationship between life exp and log gdp
 gapminder_log_fig <- gapminder_log %>% 
-  ggplot(mapping = aes(y = lifeExp, x = gdp_log, color = continent)) +
+  ggplot(mapping = aes(x = gdp_log, y = lifeExp, color = continent)) +
   geom_point() +
   #scale_color_manual(values = c("blue", "darkorange", "darkgreen", "darkred", "purple")) +
   theme_classic()
@@ -298,6 +298,7 @@ summary(gdp_v_life_model)
     -	Regression beta coefficients for equation
     -	St. Err (accuracy of the beta coefficients)
     -	Predictor significance based off t-statistic
+    - Also, some interpretation of the relationship, _for every 10-fold increase in GDP, life exp increases by about 19 years_
 -	Residual standard error
     -	Measure of patterns in the data that can’t be explained by the model
     -	When comparing two models, the model with the small RSE is a good indication that this model fits the best the data
